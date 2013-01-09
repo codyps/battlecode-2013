@@ -107,4 +107,10 @@
       basedir="${path.teams}"
       includes="${team}/**/*.java,${team}/**/*.scala"/>
   </target>
+	
+	<target name="submit" depends="build">
+	    <jar destfile="${path.base}/submission.jar"
+	      basedir="${path.teams}"
+	      includes="team211/**/*.java,team211/**/*.scala"/>
+	  </target>
 </project>
