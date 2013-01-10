@@ -25,21 +25,32 @@ import battlecode.common.Team;
 
 /* Ideas:
  * - fuzzy search for "something" in a particular direction (cone-like expansion of search area).
+ * - Use bytecode budget of things that are working (ie: HQ while spawning bots, bots while
+ *       laying/defusing/capturing) to do higher level calculations & broadcast the information.
  */
-
 public class RobotPlayer {
 	
 	public static void run(RobotController rc) {
+		Direction spawn_dir = null; /* FOR HQ: if (!null), indicates that a spawn in this direction is in progress. */
 		while (true) {
 			try {
 				if (rc.getType() == RobotType.HQ) {
 					if (rc.isActive()) {
+						// We probably just finished spawning a soilder.
+						// Can we keep track of it?
 						// Spawn a soldier
 						if (rc.getTeamPower() > 10) {
 							Direction dir = rc.getLocation().directionTo(rc.senseEnemyHQLocation());
-							if (rc.canMove(dir))
+							if (rc.canMove(dir)) {
 								rc.spawn(dir);
+							} else {
+								/* try some other directions? */
+							}
 						}
+					} else {
+						int id = rc.getRobot().getID();
+						/* Decide where to place info (and how to encode it) */
+						rc.broadcast(0, id);
 					}
 				} else if (rc.getType() == RobotType.SOLDIER) {
 					if (rc.isActive()) {
