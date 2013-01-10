@@ -70,7 +70,7 @@ public class RobotPlayer{
 		return rallyPoint;
 	}
 
-	public static void hqCode() throws GameActionException{
+	private static void hqCode() throws GameActionException{
 		if (rc.isActive()) {
 			// Spawn a soldier
 			Direction dir = rc.getLocation().directionTo(rc.senseEnemyHQLocation());

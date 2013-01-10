@@ -1,6 +1,7 @@
 package team211;
 
 import battlecode.common.Direction;
+import battlecode.common.GameActionException;
 import battlecode.common.GameConstants;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
@@ -30,66 +31,93 @@ import battlecode.common.Team;
  */
 public class RobotPlayer {
 	
-	public static void run(RobotController rc) {
+	private static void r_hq(RobotController rc) {
 		Direction spawn_dir = null; /* FOR HQ: if (!null), indicates that a spawn in this direction is in progress. */
-		while (true) {
+		while(true) {
 			try {
-				if (rc.getType() == RobotType.HQ) {
-					if (rc.isActive()) {
-						// We probably just finished spawning a soilder.
-						// Can we keep track of it?
-						// Spawn a soldier
-						if (rc.getTeamPower() > 10) {
-							Direction dir = rc.getLocation().directionTo(rc.senseEnemyHQLocation());
-							if (rc.canMove(dir)) {
-								rc.spawn(dir);
-							} else {
-								/* try some other directions? */
-							}
-						}
-					} else {
-						int id = rc.getRobot().getID();
-						/* Decide where to place info (and how to encode it) */
-						rc.broadcast(0, id);
-					}
-				} else if (rc.getType() == RobotType.SOLDIER) {
-					if (rc.isActive()) {
-						long [] mem = rc.getTeamMemory();
-						if (mem[0] == 'H')
-							System.out.println("SYS MEM IS A GO.");
-						Team my_team = rc.getTeam();
-						MapLocation my_loc = rc.getLocation();
-						//boolean on_bad_mine = my_team != rc.senseMine(my_loc);
-						
-						if (Math.random()<0.005) {
-							// Lay a mine 
-							if(rc.senseMine(my_loc) == null && rc.getTeamPower() > 10)
-								rc.layMine();
-						} else { 
-							// Choose a random direction, and move that way if possible
-							Direction dir = Direction.values()[(int)(Math.random()*8)];
-							if(rc.canMove(dir)) {
-								MapLocation new_loc = my_loc.add(dir);
-								Team maybe_mine = rc.senseMine(new_loc);
-								if (maybe_mine != null && maybe_mine != my_team) {
-									rc.defuseMine(new_loc);
-								} else {
-									rc.move(dir);
-									rc.setIndicatorString(0, "Last direction moved: "+dir.toString());
-								}
-							}
+				if (rc.isActive()) {
+					// We probably just finished spawning a soilder.
+					// Can we keep track of it?
+					// Spawn a soldier
+					if (rc.getTeamPower() > 10) {
+						Direction dir = rc.getLocation().directionTo(rc.senseEnemyHQLocation());
+						if (rc.canMove(dir)) {
+							rc.spawn(dir);
+						} else {
+							/* try some other directions? */
 						}
 					}
-				} else if (rc.getType() == RobotType.ARTILLERY) {
-					/* TODO: Some arty logic */
 				} else {
-					System.out.println("Unknown type " + rc.getType());
+					int id = rc.getRobot().getID();
+					/* Decide where to place info (and how to encode it) */
+					rc.broadcast(0, id);
 				}
-
-				rc.yield();
+			} catch (GameActionException e) {
+				e.printStackTrace();
+			}
+			rc.yield();
+		}
+	}
+	
+	private static void r_soilder(RobotController rc) {
+		while(true) {
+			try {
+				if (rc.isActive()) {
+					long [] mem = rc.getTeamMemory();
+					if (mem[0] == 'H')
+						System.out.println("SYS MEM IS A GO.");
+					Team my_team = rc.getTeam();
+					MapLocation my_loc = rc.getLocation();
+					//boolean on_bad_mine = my_team != rc.senseMine(my_loc);
+					
+					if (Math.random()<0.005) {
+						// Lay a mine 
+						if(rc.senseMine(my_loc) == null && rc.getTeamPower() > 10)
+							rc.layMine();
+					} else { 
+						// Choose a random direction, and move that way if possible
+						Direction dir = Direction.values()[(int)(Math.random()*8)];
+						if(rc.canMove(dir)) {
+							MapLocation new_loc = my_loc.add(dir);
+							Team maybe_mine = rc.senseMine(new_loc);
+							if (maybe_mine != null && maybe_mine != my_team) {
+								rc.defuseMine(new_loc);
+							} else {
+								rc.move(dir);
+								rc.setIndicatorString(0, "Last direction moved: "+dir.toString());
+							}
+						}
+					}
+				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
+			rc.yield();
+		}
+	}
+	
+	private static void r_arty(RobotController rc) {
+		while(true) {
+			rc.yield();
+		}
+	}
+	
+	private static void r_other(RobotController rc) {
+		while(true) {
+			rc.yield();
+		}
+	}
+	
+	public static void run(RobotController rc) {
+		RobotType rt = rc.getType();
+		if (rt == RobotType.HQ) {
+			r_hq(rc);
+		} else if (rt == RobotType.SOLDIER) {
+			r_soilder(rc);
+		} else if (rt == RobotType.ARTILLERY) {
+			r_arty(rc);
+		} else {
+			r_other(rc);
 		}
 	}
 }
