@@ -32,33 +32,7 @@ import battlecode.common.Team;
  */
 public class RobotPlayer {
 	
-	private static void r_hq(RobotController rc) {
-		Direction spawn_dir = null; /* if (!null), indicates that a spawn in this direction is in progress. */
-		while(true) {
-			try {
-				if (rc.isActive()) {
-					// We probably just finished spawning a solder.
-					// Can we keep track of it?
-					// Spawn a soldier
-					if (rc.getTeamPower() > 10) {
-						Direction dir = rc.getLocation().directionTo(rc.senseEnemyHQLocation());
-						if (rc.canMove(dir)) {
-							rc.spawn(dir);
-						} else {
-							/* try some other directions? */
-						}
-					}
-				} else {
-					int id = rc.getRobot().getID();
-					/* Decide where to place info (and how to encode it) */
-					rc.broadcast(0, id);
-				}
-			} catch (GameActionException e) {
-				e.printStackTrace();
-			}
-			rc.yield();
-		}
-	}
+	
 	
 	private static void careful_move(RobotController rc, Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
 		if(rc.canMove(dir)) {
@@ -106,6 +80,13 @@ public class RobotPlayer {
 		careful_move(rc, dir, my_loc, my_team);
 	}
 	
+	private static void jamm_coms(RobotController rc, int ct) throws GameActionException {
+		while(ct > 0) {
+			rc.broadcast((int)(Math.random()*GameConstants.BROADCAST_MAX_CHANNELS), (int)(Math.random()*65535));
+			ct = ct - 1;
+		}		
+	}
+	
 	private static void r_soilder_capper(RobotController rc) {
 		Team my_team = rc.getTeam();
 		MapLocation camp_goal = null;
@@ -133,6 +114,8 @@ public class RobotPlayer {
 							random_careful_move(rc, my_loc, my_team);
 						}
 					}
+				} else {
+					jamm_coms(rc, 5);
 				}
 			} catch (GameActionException e) {
 				e.printStackTrace();
@@ -155,6 +138,8 @@ public class RobotPlayer {
 					} else { 		
 						random_careful_move(rc, my_loc, my_team);
 					}
+				} else {
+					jamm_coms(rc, 5);
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -163,17 +148,65 @@ public class RobotPlayer {
 		}
 	}
 	
-	private static void r_arty(RobotController rc) {
+	/* mill around the HQ. */
+	private static void r_soilder_guard(RobotController rc) {
+		Team my_team = rc.getTeam();
+		MapLocation goal = rc.senseHQLocation();
 		while(true) {
+			try {
+				if (rc.isActive()) {
+					MapLocation my_loc = rc.getLocation();
+					if (my_loc.distanceSquaredTo(goal) > 10) {
+						Direction dir = my_loc.directionTo(goal);
+						if (rc.canMove(dir)) {
+							careful_move(rc, dir, my_loc, my_team);
+						} else {
+							random_careful_move(rc, my_loc, my_team);
+						}
+					} else {
+						random_careful_move(rc, my_loc, my_team);
+					}
+				} else {
+					jamm_coms(rc, 5);
+				}
+			} catch (GameActionException e) {
+				e.printStackTrace();
+			}
 			rc.yield();
 		}
 	}
 	
+	private static void r_hq(RobotController rc) {
+		while(true) {
+			try {
+				if (rc.isActive()) {
+					// We probably just finished spawning a solder.
+					// Can we keep track of it?
+					// Spawn a soldier
+					if (rc.getTeamPower() > 10) {
+						Direction dir = rc.getLocation().directionTo(rc.senseEnemyHQLocation());
+						if (rc.canMove(dir)) {
+							rc.spawn(dir);
+						} else {
+							/* try some other directions? */
+						}
+					}
+				} else {
+					jamm_coms(rc, 5);
+				}
+			} catch (GameActionException e) {
+				e.printStackTrace();
+			}
+			rc.yield();
+		}
+	}
+	
+	/* Jammer */
 	private static void r_other(RobotController rc) {
 		System.out.println("r_other: robot type = " + rc.getType());
 		while(true) {
 			try {
-				rc.broadcast((int)(Math.random()*GameConstants.BROADCAST_MAX_CHANNELS), (int)(Math.random()*65535));
+				jamm_coms(rc, 5);
 			} catch (GameActionException e) {
 				e.printStackTrace();
 			}
@@ -187,15 +220,15 @@ public class RobotPlayer {
 			r_hq(rc);
 		} else if (rt == RobotType.SOLDIER) {
 			while(true) {
-				r_soilder_capper(rc);
-				if (Math.random() > 0.9) {
+				int i = rc.getRobot().getID() % 10;
+				if (i >= 9) {
 					r_soilder(rc);
-				} else {
+				} else if (i >= 3) {
 					r_soilder_capper(rc);
+				} else {
+					r_soilder_guard(rc);
 				}
 			}
-		} else if (rt == RobotType.ARTILLERY) {
-			r_arty(rc);
 		} else {
 			r_other(rc);
 		}
