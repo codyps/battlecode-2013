@@ -23,6 +23,10 @@ import battlecode.common.Team;
  * > Build something on the camps.
  */
 
+/* Ideas:
+ * - fuzzy search for "something" in a particular direction (cone-like expansion of search area).
+ */
+
 public class RobotPlayer {
 	
 	public static void run(RobotController rc) {
@@ -41,7 +45,7 @@ public class RobotPlayer {
 					if (rc.isActive()) {
 						long [] mem = rc.getTeamMemory();
 						if (mem[0] == 'H')
-							System.out.print("SYS MEM IS A GO.");
+							System.out.println("SYS MEM IS A GO.");
 						Team my_team = rc.getTeam();
 						MapLocation my_loc = rc.getLocation();
 						//boolean on_bad_mine = my_team != rc.senseMine(my_loc);
@@ -65,6 +69,10 @@ public class RobotPlayer {
 							}
 						}
 					}
+				} else if (rc.getType() == RobotType.ARTILLERY) {
+					/* TODO: Some arty logic */
+				} else {
+					System.out.println("Unknown type " + rc.getType());
 				}
 
 				rc.yield();
