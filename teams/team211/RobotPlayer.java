@@ -32,6 +32,7 @@ import battlecode.common.Team;
  */
 public class RobotPlayer {
 	
+	private static int [] s;
 	
 	
 	private static void careful_move(RobotController rc, Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
@@ -123,8 +124,32 @@ public class RobotPlayer {
 			rc.yield();
 		}
 	}
-	
+
 	private static void r_soilder(RobotController rc) {
+		Team my_team = rc.getTeam();
+		while(true) {
+			try {
+				if (rc.isActive()) {
+					MapLocation my_loc = rc.getLocation();
+					//boolean on_bad_mine = my_team != rc.senseMine(my_loc);
+					
+					if (Math.random()<0.005 && rc.senseMine(my_loc) == null) {
+						if(rc.getTeamPower() > 10)
+							rc.layMine();
+					} else { 		
+						random_careful_move(rc, my_loc, my_team);
+					}
+				} else {
+					jamm_coms(rc, 5);
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			rc.yield();
+		}
+	}
+	
+	private static void r_soilder_assault(RobotController rc) {
 		Team my_team = rc.getTeam();
 		while(true) {
 			try {
