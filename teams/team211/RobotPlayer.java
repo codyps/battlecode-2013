@@ -1,9 +1,12 @@
 package team211;
 
+import battlecode.common.Clock;
 import battlecode.common.Direction;
 import battlecode.common.GameActionException;
 import battlecode.common.GameConstants;
+import battlecode.common.GameObject;
 import battlecode.common.MapLocation;
+import battlecode.common.Robot;
 import battlecode.common.RobotController;
 import battlecode.common.RobotType;
 import battlecode.common.Team;
@@ -32,8 +35,8 @@ import battlecode.common.Team;
  */
 public class RobotPlayer {
 	
-	private static int [] s;
-	
+	private static int [][] battle_map = new int[10][10];
+	private static MapLocation rally_cache = null;
 	
 	private static void careful_move(RobotController rc, Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
 		if(rc.canMove(dir)) {
@@ -88,31 +91,65 @@ public class RobotPlayer {
 		}		
 	}
 	
+	private static void do_battle(RobotController rc, Robot[] evil_robots) throws GameActionException {
+		Robot[] allies = rc.senseNearbyGameObjects(Robot.class, 1000000, rc.getTeam());
+		MapLocation me = rc.getLocation();
+		
+		for (int x = 0; x < battle_map.length; x++)
+			for (int y = 0; y < battle_map.length; y++)
+				battle_map[x][y] = 0;
+		
+		/* encode allies & enemies into grid */
+		for (Robot ally: allies) {
+			MapLocation it = rc.senseLocationOf(ally);
+			battle_map[me.x - it.x + battle_map.length / 2][me.y - it.y + battle_map.length] =  1 << 0;
+		}
+		
+		for (Robot r: evil_robots) {
+			MapLocation it = rc.senseLocationOf(r);
+			battle_map[me.x - it.x + battle_map.length / 2][me.y - it.y + battle_map.length] =  1 << 1;
+		}
+		
+		/* Decide where to move */
+	}
+	
+	private static boolean handle_battle(RobotController rc) throws GameActionException {
+		Robot[] en = rc.senseNearbyGameObjects(Robot.class, 1000000, rc.getTeam().opponent());
+		if (en.length != 0) {
+			do_battle(rc, en);
+			return false;
+		} else {
+			return true;
+		}
+	}
+	
 	private static void r_soilder_capper(RobotController rc) {
 		Team my_team = rc.getTeam();
 		MapLocation camp_goal = null;
 		while(true) {
 			try {
 				if (rc.isActive()) {
-					MapLocation my_loc = rc.getLocation();
-					if (camp_goal == null) {
-						camp_goal = find_closest_camp(rc);
-					}
-					
-					if (my_loc.equals(camp_goal)) {
-						if (Math.random() > 0.5) {
-							rc.captureEncampment(RobotType.SUPPLIER);
-						} else {
-							rc.captureEncampment(RobotType.GENERATOR);
+					if (handle_battle(rc)) {
+						MapLocation my_loc = rc.getLocation();
+						if (camp_goal == null) {
+							camp_goal = find_closest_camp(rc);
 						}
-						camp_goal = null;
-					} else {
-						/* look for closest unclaimed, unoccupied camp. */
-						Direction dir = my_loc.directionTo(camp_goal);
-						if (rc.canMove(dir)) {
-							careful_move(rc, dir, my_loc, my_team);
+						
+						if (my_loc.equals(camp_goal)) {
+							if (Math.random() > 0.5) {
+								rc.captureEncampment(RobotType.SUPPLIER);
+							} else {
+								rc.captureEncampment(RobotType.GENERATOR);
+							}
+							camp_goal = null;
 						} else {
-							random_careful_move(rc, my_loc, my_team);
+							/* look for closest unclaimed, unoccupied camp. */
+							Direction dir = my_loc.directionTo(camp_goal);
+							if (rc.canMove(dir)) {
+								careful_move(rc, dir, my_loc, my_team);
+							} else {
+								random_careful_move(rc, my_loc, my_team);
+							}
 						}
 					}
 				} else {
@@ -125,19 +162,21 @@ public class RobotPlayer {
 		}
 	}
 
-	private static void r_soilder(RobotController rc) {
+	private static void r_soilder_random_layer(RobotController rc) {
 		Team my_team = rc.getTeam();
 		while(true) {
 			try {
 				if (rc.isActive()) {
-					MapLocation my_loc = rc.getLocation();
-					//boolean on_bad_mine = my_team != rc.senseMine(my_loc);
-					
-					if (Math.random()<0.005 && rc.senseMine(my_loc) == null) {
-						if(rc.getTeamPower() > 10)
-							rc.layMine();
-					} else { 		
-						random_careful_move(rc, my_loc, my_team);
+					if (handle_battle(rc)) {
+						MapLocation my_loc = rc.getLocation();
+						//boolean on_bad_mine = my_team != rc.senseMine(my_loc);
+						
+						if (Math.random()<0.005 && rc.senseMine(my_loc) == null) {
+							if(rc.getTeamPower() > 10)
+								rc.layMine();
+						} else { 		
+							random_careful_move(rc, my_loc, my_team);
+						}
 					}
 				} else {
 					jamm_coms(rc, 5);
@@ -149,19 +188,33 @@ public class RobotPlayer {
 		}
 	}
 	
+	private static boolean should_clump(RobotController rc) {
+		return Clock.getRoundNum() < 300;
+	}
+	
+	private static MapLocation center_of_map(RobotController rc) {
+		return new MapLocation(rc.getMapHeight() / 2, rc.getMapWidth());
+	}
+	
+	private static MapLocation get_clump(RobotController rc) {
+		return center_of_map(rc);
+	}
+	
 	private static void r_soilder_assault(RobotController rc) {
 		Team my_team = rc.getTeam();
+		MapLocation enemy_hq = rc.senseEnemyHQLocation();
 		while(true) {
 			try {
 				if (rc.isActive()) {
-					MapLocation my_loc = rc.getLocation();
-					//boolean on_bad_mine = my_team != rc.senseMine(my_loc);
-					
-					if (Math.random()<0.005 && rc.senseMine(my_loc) == null) {
-						if(rc.getTeamPower() > 10)
-							rc.layMine();
-					} else { 		
-						random_careful_move(rc, my_loc, my_team);
+					if (!handle_battle(rc)) {
+						// CLUMP then ATTACK.
+						MapLocation my_loc = rc.getLocation();
+						if (should_clump(rc)) {
+							MapLocation c = get_clump(rc);
+							careful_move_toward(rc, c, my_loc, my_team);
+						} else {
+							careful_move_toward(rc, enemy_hq, my_loc, my_team);
+						}
 					}
 				} else {
 					jamm_coms(rc, 5);
@@ -181,7 +234,8 @@ public class RobotPlayer {
 			try {
 				if (rc.isActive()) {
 					MapLocation my_loc = rc.getLocation();
-					if (my_loc.distanceSquaredTo(goal) > 10) {
+					double dist = my_loc.distanceSquaredTo(goal);
+					if (dist > 10) {
 						Direction dir = my_loc.directionTo(goal);
 						if (rc.canMove(dir)) {
 							careful_move(rc, dir, my_loc, my_team);
@@ -189,7 +243,11 @@ public class RobotPlayer {
 							random_careful_move(rc, my_loc, my_team);
 						}
 					} else {
-						random_careful_move(rc, my_loc, my_team);
+						if (Clock.getRoundNum() % 5 == 0) {
+							rc.layMine();
+						} else {
+							random_careful_move(rc, my_loc, my_team);
+						}
 					}
 				} else {
 					jamm_coms(rc, 5);
@@ -214,6 +272,7 @@ public class RobotPlayer {
 							rc.spawn(dir);
 						} else {
 							/* try some other directions? */
+							
 						}
 					}
 				} else {
@@ -246,8 +305,8 @@ public class RobotPlayer {
 		} else if (rt == RobotType.SOLDIER) {
 			while(true) {
 				int i = rc.getRobot().getID() % 10;
-				if (i >= 9) {
-					r_soilder(rc);
+				if (i >= 8) {
+					r_soilder_assault(rc);
 				} else if (i >= 3) {
 					r_soilder_capper(rc);
 				} else {
