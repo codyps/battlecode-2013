@@ -34,6 +34,10 @@ import battlecode.common.Team;
  * - Use bytecode budget of things that are working (ie: HQ while spawning bots, bots while
  *       laying/defusing/capturing) to do higher level calculations & broadcast the information.
  * - Assign "ROLES" to subsets of RobotTypes (some will be "guards", "attack", "explore", "capture")
+ * - In general, for rts games, positioning is very important. Specifically, you want to have
+ * 		a concave shape for your army, surrounding the other guy's army. And, of course don't let
+ * 		your scounts get caught. Micro-managing is important. Hurt guys run away, lose aggro, then come
+ * 		back again.
  */
 public class RobotPlayer {
 	final static int battle_len = 13;
