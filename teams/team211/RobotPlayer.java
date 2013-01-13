@@ -66,20 +66,24 @@ public class RobotPlayer {
 	
 	private static String name = "Unnamed";
 	
-	private static void careful_move(Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
-		if(rc.canMove(dir)) {
-			MapLocation new_loc = my_loc.add(dir);
-			Team maybe_mine = rc.senseMine(new_loc);
-			if (maybe_mine != null && maybe_mine != my_team) {
-				rc.defuseMine(new_loc);
-			} else {
-				rc.move(dir);
-				rc.setIndicatorString(0, "Last direction moved: " + dir);
-			}
+	private static void moveOrDefuse(Direction dir) throws GameActionException {
+		MapLocation ahead = rc.getLocation().add(dir);
+		Team t = rc.senseMine(ahead);
+		if(t != null && t != my_team) {
+			rc.defuseMine(ahead);
+		} else {
+			rc.setIndicatorString(1, "Last direction moved: " + dir);
+			rc.move(dir);			
 		}
 	}
 	
-	private static MapLocation find_closest_camp() throws GameActionException {
+	private static void careful_move(Direction dir) throws GameActionException {
+		if(rc.canMove(dir)) {
+			moveOrDefuse(dir);
+		}
+	}
+	
+	private static MapLocation find_closest_camp_2() throws GameActionException {
 		int r_sq = 50;
 		MapLocation [] locs = null;
 		while (locs == null || locs.length == 0) {
@@ -89,7 +93,23 @@ public class RobotPlayer {
 		return locs[(int)(Math.random() * locs.length)];
 	}
 	
-	private static void random_careful_move(MapLocation my_loc, Team my_team)
+	/* FIXME: expensive. */
+	private static MapLocation find_closest_neutral_camp() throws GameActionException {
+		MapLocation [] locs = rc.senseEncampmentSquares(rc.getLocation(), 1000000, Team.NEUTRAL);
+		MapLocation my_loc = rc.getLocation();
+		MapLocation closest = null;
+		int closest_d = 1000000;
+		for (MapLocation loc: locs) {
+			int d = loc.distanceSquaredTo(my_loc);
+			if (d < closest_d) {
+				closest_d = d;
+				closest = loc;
+			}
+		}
+		return closest;
+	}
+	
+	private static void random_careful_move()
 			throws GameActionException {
 		// Choose a random direction, and move that way if possible
 		Direction [] dirs = Direction.values();
@@ -105,13 +125,7 @@ public class RobotPlayer {
 			dir = dirs[c];
 		}
 		
-		careful_move(dir, my_loc, my_team);
-	}
-	
-	private static void careful_move_toward(MapLocation goal, MapLocation my_loc, Team my_team)
-			throws GameActionException {
-		Direction dir = my_loc.directionTo(goal);
-		careful_move(dir, my_loc, my_team);
+		moveOrDefuse(dir);
 	}
 	
 	private static void jamm_coms(RobotController rc, int ct) throws GameActionException {
@@ -193,8 +207,8 @@ public class RobotPlayer {
 		int retreat_bad  = battle_bad[battle_center][battle_center];
 		int retreat_x = 0;
 		int retreat_y = 0;
-		for (int i = 0; i <= battle_len; i++)
-			for (int j = 0; j <= battle_len; j++) {
+		for (int i = 0; i < battle_len; i++)
+			for (int j = 0; j < battle_len; j++) {
 				if (battle_allies[i][j] != 0 || battle_enemies[i][j] != 0)
 					continue;
 				int good = battle_good[i][j];
@@ -238,6 +252,22 @@ public class RobotPlayer {
 		}
 	}
 	
+	private static boolean build_encampment() {
+		boolean succ = true;
+		try {
+			double r = new java.util.Random(rc.getRobot().getID()).nextDouble();
+			if (r > 0.2) {
+				rc.captureEncampment(RobotType.SUPPLIER);
+			} else {
+				rc.captureEncampment(RobotType.GENERATOR);
+			}
+		} catch (GameActionException e) {
+			succ = false;
+		}
+
+		return succ;
+	}
+	
 	private static void r_soilder_capper() {
 		MapLocation camp_goal = null;
 		while(true) {
@@ -245,14 +275,21 @@ public class RobotPlayer {
 				if (rc.isActive()) {
 					if (handle_battle()) {
 						MapLocation my_loc = rc.getLocation();
+						
+						/* See if we've captured the encampment since the last turn */
+						try {
+							if (rc.senseObjectAtLocation(my_loc).getTeam() == my_team)
+								camp_goal = null;
+						} catch (GameActionException e) {}
+						
 						if (camp_goal == null) {
-							camp_goal = find_closest_camp();
+							camp_goal = find_closest_neutral_camp();
 						}
 						
 						if (my_loc.equals(camp_goal)) {
-							rc.captureEncampment(RobotType.SUPPLIER);
-							camp_goal = null;
-						} else {
+							if (build_encampment())
+								camp_goal = null;
+						} else {	
 							goToLocation(camp_goal);
 						}
 					}
@@ -278,7 +315,7 @@ public class RobotPlayer {
 						} else if (r<0.051 && rc.senseMine(my_loc) == null) {
 							rc.layMine();
 						} else { 		
-							random_careful_move(my_loc, my_team);
+							random_careful_move();
 						}
 					}
 				} else {
@@ -301,16 +338,7 @@ public class RobotPlayer {
 		return !assaulting;
 	}
 
-	private static void moveOrDefuse(Direction dir) throws GameActionException{
-		MapLocation ahead = rc.getLocation().add(dir);
-		Team t = rc.senseMine(ahead);
-		if(t != null && t != my_team) {
-			rc.defuseMine(ahead);
-		} else {
-			rc.move(dir);			
-		}
-	}
-	
+
 	private static void goToLocation(MapLocation whereToGo) throws GameActionException {
 		int dist = rc.getLocation().distanceSquaredTo(whereToGo);
 		if (dist>0&&rc.isActive()){
@@ -327,6 +355,8 @@ public class RobotPlayer {
 		}
 	}
 	
+	
+	/* FIXME: some assault units max out bytecode usage. */
 	private static void r_soilder_assault() {
 		MapLocation rally_point = new MapLocation((hq.x * 2 + enemy_hq.y)/3, (hq.y * 2+ enemy_hq.y)/3);
 		while(true) {
@@ -363,22 +393,22 @@ public class RobotPlayer {
 					if (dist > 15) {
 						Direction dir = my_loc.directionTo(goal);
 						if (rc.canMove(dir)) {
-							careful_move(dir, my_loc, my_team);
+							careful_move(dir);
 						} else {
-							random_careful_move(my_loc, my_team);
+							random_careful_move();
 						}
 					} else if (dist <= 2) {
 						Direction dir = my_loc.directionTo(goal).opposite();
 						if (rc.canMove(dir)) {
-							careful_move(dir, my_loc, my_team);
+							careful_move(dir);
 						} else {
-							random_careful_move(my_loc, my_team);
+							random_careful_move();
 						}
 					} else {
 						if (Math.random() > 0.5) {
 							rc.layMine();
 						} else {
-							random_careful_move(my_loc, my_team);
+							random_careful_move();
 						}
 					}
 				} else {
@@ -462,7 +492,7 @@ public class RobotPlayer {
 					r_soilder_capper();
 				} else {
 					name = "Wanderer";
-					
+					rc.setIndicatorString(0, name);
 					r_soilder_random_layer();
 				}
 			}
