@@ -1,7 +1,5 @@
 package team211;
 
-import com.sun.org.apache.bcel.internal.generic.BALOAD;
-
 import battlecode.common.Clock;
 import battlecode.common.Direction;
 import battlecode.common.GameActionException;
