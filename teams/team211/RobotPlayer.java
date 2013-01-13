@@ -50,10 +50,10 @@ public class RobotPlayer {
 	final static int battle_len = 13;
 	final static int battle_center = 6;
 	
-	private static int [][] battle_allies = new int[battle_len][battle_len];
+	private static int [][] battle_allies  = new int[battle_len][battle_len];
 	private static int [][] battle_enemies = new int[battle_len][battle_len];
-	private static int [][] battle_good = new int [battle_len][battle_len];
-	private static int [][] battle_bad = new int [battle_len][battle_len];
+	private static int [][] battle_good    = new int[battle_len][battle_len];
+	private static int [][] battle_bad     = new int[battle_len][battle_len];
 	
 	private static void careful_move(Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
 		if(rc.canMove(dir)) {
@@ -104,10 +104,13 @@ public class RobotPlayer {
 	}
 	
 	private static void jamm_coms(RobotController rc, int ct) throws GameActionException {
+		return;
+		/*
 		while(ct > 0) {
 			rc.broadcast((int)(Math.random()*GameConstants.BROADCAST_MAX_CHANNELS), (int)(Math.random()*65535));
 			ct = ct - 1;
-		}		
+		}
+		*/		
 	}
 	private static void battle_prep(Robot[] evil_robots){
 		Robot[] allies = rc.senseNearbyGameObjects(Robot.class, 1000000, rc.getTeam());
@@ -283,7 +286,7 @@ public class RobotPlayer {
 	}
 	
 	private static boolean should_clump() {
-		return Clock.getRoundNum() < 100;
+		return Clock.getRoundNum() < 250;
 	}
 
 	private static void moveOrDefuse(Direction dir) throws GameActionException{
@@ -311,7 +314,7 @@ public class RobotPlayer {
 	}
 	
 	private static void r_soilder_assault() {
-		MapLocation rally_point = new MapLocation((hq.x * 2 + enemy_hq.y)/3, (hq.y * 2 + enemy_hq.y)/3);
+		MapLocation rally_point = new MapLocation((hq.x * 5 + enemy_hq.y*2)/7, (hq.y * 5+ enemy_hq.y*2)/7);
 		while(true) {
 			try {
 				if (rc.isActive()) {
