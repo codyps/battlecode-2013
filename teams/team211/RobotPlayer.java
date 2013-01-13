@@ -36,6 +36,8 @@ import battlecode.common.Team;
  * - Assign "ROLES" to subsets of RobotTypes (some will be "guards", "attack", "explore", "capture")
  */
 public class RobotPlayer {
+	static RobotController rc;
+	
 	final static int battle_len = 13;
 	final static int battle_center = 6;
 	
@@ -44,7 +46,7 @@ public class RobotPlayer {
 	private static int [][] battle_good = new int [battle_len][battle_len];
 	private static int [][] battle_bad = new int [battle_len][battle_len];
 	
-	private static void careful_move(RobotController rc, Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
+	private static void careful_move(Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
 		if(rc.canMove(dir)) {
 			MapLocation new_loc = my_loc.add(dir);
 			Team maybe_mine = rc.senseMine(new_loc);
@@ -57,7 +59,7 @@ public class RobotPlayer {
 		}
 	}
 	
-	private static MapLocation find_closest_camp(RobotController rc) throws GameActionException {
+	private static MapLocation find_closest_camp() throws GameActionException {
 		int r_sq = 50;
 		MapLocation [] locs = null;
 		while (locs == null || locs.length == 0) {
@@ -67,7 +69,7 @@ public class RobotPlayer {
 		return locs[(int)(Math.random() * locs.length)];
 	}
 	
-	private static void random_careful_move(RobotController rc, MapLocation my_loc, Team my_team)
+	private static void random_careful_move(MapLocation my_loc, Team my_team)
 			throws GameActionException {
 		// Choose a random direction, and move that way if possible
 		Direction [] dirs = Direction.values();
@@ -83,13 +85,13 @@ public class RobotPlayer {
 			dir = dirs[c];
 		}
 		
-		careful_move(rc, dir, my_loc, my_team);
+		careful_move(dir, my_loc, my_team);
 	}
 	
-	private static void careful_move_toward(RobotController rc, MapLocation goal, MapLocation my_loc, Team my_team)
+	private static void careful_move_toward(MapLocation goal, MapLocation my_loc, Team my_team)
 			throws GameActionException {
 		Direction dir = my_loc.directionTo(goal);
-		careful_move(rc, dir, my_loc, my_team);
+		careful_move(dir, my_loc, my_team);
 	}
 	
 	private static void jamm_coms(RobotController rc, int ct) throws GameActionException {
@@ -191,14 +193,14 @@ public class RobotPlayer {
 			}
 		
 		if (best_good > retreat_good) {
-			rc.move(me.directionTo(me.add(best_x, best_y)));
+			rc.move(me.directionTo(me.add(best_x - battle_center, best_y - battle_center)));
 		} else {
-			rc.move(me.directionTo(me.add(retreat_x, retreat_y)));
+			rc.move(me.directionTo(me.add(retreat_x - battle_center, retreat_y - battle_center)));
 		}
 	}
 	
-	private static boolean handle_battle(RobotController rc) throws GameActionException {
-		Robot[] en = rc.senseNearbyGameObjects(Robot.class, 1000000, rc.getTeam().opponent());
+	private static boolean handle_battle() throws GameActionException {
+		Robot[] en = rc.senseNearbyGameObjects(Robot.class, 5, rc.getTeam().opponent());
 		if (en.length != 0) {
 			do_battle(rc, en);
 			return false;
@@ -207,16 +209,16 @@ public class RobotPlayer {
 		}
 	}
 	
-	private static void r_soilder_capper(RobotController rc) {
+	private static void r_soilder_capper() {
 		Team my_team = rc.getTeam();
 		MapLocation camp_goal = null;
 		while(true) {
 			try {
 				if (rc.isActive()) {
-					if (handle_battle(rc)) {
+					if (handle_battle()) {
 						MapLocation my_loc = rc.getLocation();
 						if (camp_goal == null) {
-							camp_goal = find_closest_camp(rc);
+							camp_goal = find_closest_camp();
 						}
 						
 						if (my_loc.equals(camp_goal)) {
@@ -230,9 +232,9 @@ public class RobotPlayer {
 							/* look for closest unclaimed, unoccupied camp. */
 							Direction dir = my_loc.directionTo(camp_goal);
 							if (rc.canMove(dir)) {
-								careful_move(rc, dir, my_loc, my_team);
+								careful_move(dir, my_loc, my_team);
 							} else {
-								random_careful_move(rc, my_loc, my_team);
+								random_careful_move(my_loc, my_team);
 							}
 						}
 					}
@@ -246,12 +248,12 @@ public class RobotPlayer {
 		}
 	}
 
-	private static void r_soilder_random_layer(RobotController rc) {
+	private static void r_soilder_random_layer() {
 		Team my_team = rc.getTeam();
 		while(true) {
 			try {
 				if (rc.isActive()) {
-					if (handle_battle(rc)) {
+					if (handle_battle()) {
 						MapLocation my_loc = rc.getLocation();
 						//boolean on_bad_mine = my_team != rc.senseMine(my_loc);
 						
@@ -259,7 +261,7 @@ public class RobotPlayer {
 							if(rc.getTeamPower() > 10)
 								rc.layMine();
 						} else { 		
-							random_careful_move(rc, my_loc, my_team);
+							random_careful_move(my_loc, my_team);
 						}
 					}
 				} else {
@@ -272,32 +274,47 @@ public class RobotPlayer {
 		}
 	}
 	
-	private static boolean should_clump(RobotController rc) {
-		return Clock.getRoundNum() < 300;
+	private static boolean should_clump() {
+		return Clock.getRoundNum() < 100;
+	}
+
+	private static void moveOrDefuse(Direction dir) throws GameActionException{
+		MapLocation ahead = rc.getLocation().add(dir);
+		if(rc.senseMine(ahead)!= null){
+			rc.defuseMine(ahead);
+		}else{
+			rc.move(dir);			
+		}
+	}
+	private static void goToLocation(MapLocation whereToGo) throws GameActionException {
+		int dist = rc.getLocation().distanceSquaredTo(whereToGo);
+		if (dist>0&&rc.isActive()){
+			Direction dir = rc.getLocation().directionTo(whereToGo);
+			int[] directionOffsets = {0,1,-1,2,-2};
+			Direction lookingAtCurrently = null;
+			lookAround: for (int d:directionOffsets){
+				lookingAtCurrently = Direction.values()[(dir.ordinal()+d+8)%8];
+				if(rc.canMove(lookingAtCurrently)){
+					moveOrDefuse(lookingAtCurrently);
+					break lookAround;
+				}
+			}
+		}
 	}
 	
-	private static MapLocation center_of_map(RobotController rc) {
-		return new MapLocation(rc.getMapHeight() / 2, rc.getMapWidth());
-	}
-	
-	private static MapLocation get_clump(RobotController rc) {
-		return center_of_map(rc);
-	}
-	
-	private static void r_soilder_assault(RobotController rc) {
-		Team my_team = rc.getTeam();
+	private static void r_soilder_assault() {
 		MapLocation enemy_hq = rc.senseEnemyHQLocation();
+		MapLocation hq = rc.senseHQLocation();
+		MapLocation rally_point = new MapLocation((hq.x * 2 + enemy_hq.y)/3, (hq.y * 2 + enemy_hq.y)/3);
 		while(true) {
 			try {
 				if (rc.isActive()) {
-					if (handle_battle(rc)) {
+					if (handle_battle()) {
 						// CLUMP then ATTACK.
-						MapLocation my_loc = rc.getLocation();
-						if (should_clump(rc)) {
-							MapLocation c = get_clump(rc);
-							careful_move_toward(rc, c, my_loc, my_team);
+						if (should_clump()) {
+							goToLocation(rally_point);
 						} else {
-							careful_move_toward(rc, enemy_hq, my_loc, my_team);
+							goToLocation(enemy_hq);
 						}
 					}
 				} else {
@@ -313,7 +330,7 @@ public class RobotPlayer {
 	//private static boolean try_in_the_general_direction(RobotController rc, Direction d, Functo)
 	
 	/* mill around the HQ. */
-	private static void r_soilder_guard(RobotController rc) {
+	private static void r_soilder_guard() {
 		Team my_team = rc.getTeam();
 		MapLocation goal = rc.senseHQLocation();
 		while(true) {
@@ -324,22 +341,22 @@ public class RobotPlayer {
 					if (dist > 15) {
 						Direction dir = my_loc.directionTo(goal);
 						if (rc.canMove(dir)) {
-							careful_move(rc, dir, my_loc, my_team);
+							careful_move(dir, my_loc, my_team);
 						} else {
-							random_careful_move(rc, my_loc, my_team);
+							random_careful_move(my_loc, my_team);
 						}
 					} else if (dist <= 2) {
 						Direction dir = my_loc.directionTo(goal).opposite();
 						if (rc.canMove(dir)) {
-							careful_move(rc, dir, my_loc, my_team);
+							careful_move(dir, my_loc, my_team);
 						} else {
-							random_careful_move(rc, my_loc, my_team);
+							random_careful_move(my_loc, my_team);
 						}
 					} else {
 						if (Math.random() > 0.5) {
 							rc.layMine();
 						} else {
-							random_careful_move(rc, my_loc, my_team);
+							random_careful_move(my_loc, my_team);
 						}
 					}
 				} else {
@@ -352,7 +369,7 @@ public class RobotPlayer {
 		}
 	}
 	
-	private static void r_hq(RobotController rc) {
+	private static void r_hq() {
 		while(true) {
 			try {
 				if (rc.isActive()) {
@@ -391,19 +408,21 @@ public class RobotPlayer {
 		}
 	}
 	
-	public static void run(RobotController rc) {
+	public static void run(RobotController rc_) {
+		rc = rc_;
+		
 		RobotType rt = rc.getType();
 		if (rt == RobotType.HQ) {
-			r_hq(rc);
+			r_hq();
 		} else if (rt == RobotType.SOLDIER) {
 			while(true) {
 				int i = rc.getRobot().getID() % 10;
-				if (i >= 8) {
-					r_soilder_assault(rc);
-				} else if (i >= 3) {
-					r_soilder_capper(rc);
+				if (i >= 4) {
+					r_soilder_assault();
+				} else if (i >= 2) {
+					r_soilder_capper();
 				} else {
-					r_soilder_guard(rc);
+					r_soilder_random_layer();
 				}
 			}
 		} else {
