@@ -363,7 +363,7 @@ public class RobotPlayer {
 						Direction dir = rc.getLocation().directionTo(rc.senseEnemyHQLocation());
 						if (rc.canMove(dir)) {
 							rc.spawn(dir);
-						} else { 
+						} else { //will spawn a guy in an unfilled location
 							Direction dnextup   = dir;
 							Direction dnextdown = dir;
 							for(int rot_count=0; rot_count <= 4; rot_count = rot_count+1){
