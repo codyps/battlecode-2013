@@ -317,11 +317,22 @@ public class RobotPlayer {
 						Direction dir = rc.getLocation().directionTo(rc.senseEnemyHQLocation());
 						if (rc.canMove(dir)) {
 							rc.spawn(dir);
-						} else {
-							/* try some other directions? */
-							/* make a list of directions, then */
+						} else { 
+							Direction dnextup   = dir;
+							Direction dnextdown = dir;
+							for(int rot_count=0; rot_count <= 4; rot_count = rot_count+1)
+								Direction dnextup   = dnextup.rotateLeft();
+								Direction dnextdown = dnextdown.rotateRight();
+									if (rc.canMove(dnextup)) {
+										rc.spawn(dnextup);
+									}
+									else if (rc.canMove(dnextdown)) {
+										rc.spawn(dnextdown);
+									}
+									
 						}
 					}
+					
 				} else {
 					jamm_coms(rc, 5);
 				}
