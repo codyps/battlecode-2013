@@ -37,21 +37,32 @@ import battlecode.common.Team;
  * 		your scounts get caught. Micro-managing is important. Hurt guys run away, lose aggro, then come
  * 		back again.
  */
+
+
+/* Ideas:
+ * - make should_clump() true every other hundred turns
+ * - use number of allies adjacent to an enemy in do_battle()
+ * - retask wanderer soilders after some number of turns
+ * - make an alternate waypoint out of the way of attackers
+ * - form 2 groups: 1 "wall" of defenders, and 1 of attackers which go around behind the enemy base.
+ * 
+ */
+
 public class RobotPlayer {
-	static RobotController rc;
+	private static RobotController rc;
 	
-	static MapLocation hq;
-	static MapLocation enemy_hq;
+	private static MapLocation hq;
+	private static MapLocation enemy_hq;
 	
-	static Team my_team;
+	private static Team my_team;
 	
-	final static int battle_len = 13;
-	final static int battle_center = 6;
+	private final static int battle_len = 13;
+	private final static int battle_center = 6;
 	
-	private static int [][] battle_allies  = new int[battle_len][battle_len];
-	private static int [][] battle_enemies = new int[battle_len][battle_len];
-	private static int [][] battle_good    = new int[battle_len][battle_len];
-	private static int [][] battle_bad     = new int[battle_len][battle_len];
+	final private static int [][] battle_allies  = new int[battle_len][battle_len];
+	final private static int [][] battle_enemies = new int[battle_len][battle_len];
+	final private static int [][] battle_good    = new int[battle_len][battle_len];
+	final private static int [][] battle_bad     = new int[battle_len][battle_len];
 	
 	private static void careful_move(Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
 		if(rc.canMove(dir)) {
@@ -180,8 +191,8 @@ public class RobotPlayer {
 		int retreat_bad  = battle_bad[battle_center][battle_center];
 		int retreat_x = 0;
 		int retreat_y = 0;
-		for (int i = battle_center - 1; i <= battle_center + 1; i++)
-			for (int j = battle_center - 1; j <= battle_center + 1; j++) {
+		for (int i = 0; i <= battle_len; i++)
+			for (int j = 0; j <= battle_len; j++) {
 				if (battle_allies[i][j] != 0 || battle_enemies[i][j] != 0)
 					continue;
 				int good = battle_good[i][j];
@@ -206,9 +217,11 @@ public class RobotPlayer {
 			}
 		
 		if (best_good > retreat_good) {
-			rc.move(me.directionTo(me.add(best_x - battle_center, best_y - battle_center)));
+			//rc.move(me.directionTo(me.add(best_x - battle_center, best_y - battle_center)));
+			goToLocation(me.add(best_x - battle_center, best_y - battle_center));
 		} else {
-			rc.move(me.directionTo(me.add(retreat_x - battle_center, retreat_y - battle_center)));
+			//rc.move(me.directionTo(me.add(retreat_x - battle_center, retreat_y - battle_center)));
+			goToLocation(me.add(retreat_x - battle_center, retreat_y - battle_center));
 		}
 	}
 	
@@ -283,18 +296,26 @@ public class RobotPlayer {
 		}
 	}
 	
+	
+	private static boolean assaulting = false;
 	private static boolean should_clump() {
-		return Clock.getRoundNum() < 250;
+		if (assaulting)
+			return true;
+		if (Clock.getRoundNum() > 200)
+			assaulting = ((Clock.getRoundNum() / 100) % 2) == 0;
+		return assaulting;
 	}
 
 	private static void moveOrDefuse(Direction dir) throws GameActionException{
 		MapLocation ahead = rc.getLocation().add(dir);
-		if(rc.senseMine(ahead)!= null){
+		Team t = rc.senseMine(ahead);
+		if(t != null && t != my_team) {
 			rc.defuseMine(ahead);
-		}else{
+		} else {
 			rc.move(dir);			
 		}
 	}
+	
 	private static void goToLocation(MapLocation whereToGo) throws GameActionException {
 		int dist = rc.getLocation().distanceSquaredTo(whereToGo);
 		if (dist>0&&rc.isActive()){
@@ -312,7 +333,7 @@ public class RobotPlayer {
 	}
 	
 	private static void r_soilder_assault() {
-		MapLocation rally_point = new MapLocation((hq.x * 5 + enemy_hq.y*2)/7, (hq.y * 5+ enemy_hq.y*2)/7);
+		MapLocation rally_point = new MapLocation((hq.x * 2 + enemy_hq.y)/3, (hq.y * 2+ enemy_hq.y)/3);
 		while(true) {
 			try {
 				if (rc.isActive()) {
@@ -381,27 +402,25 @@ public class RobotPlayer {
 				if (rc.isActive()) {
 					// We probably just finished spawning a solder.
 					// Can we keep track of it?
-					// Spawn a soldier
-					//if (rc.getTeamPower() > 10) {
-						Direction dir = rc.getLocation().directionTo(enemy_hq);
-						if (rc.canMove(dir)) {
-							rc.spawn(dir);
-						} else { //will spawn a guy in an unfilled location
-							Direction dnextup   = dir;
-							Direction dnextdown = dir;
-							for(int rot_count=0; rot_count <= 4; rot_count = rot_count+1){
-								dnextup   = dnextup.rotateLeft();
-								dnextdown = dnextdown.rotateRight();
-									if (rc.canMove(dnextup)) {
-										rc.spawn(dnextup);
-									}
-									else if (rc.canMove(dnextdown)) {
-										rc.spawn(dnextdown);
-									}
-							}	
+
+					Direction dir = rc.getLocation().directionTo(enemy_hq);
+					if (rc.canMove(dir)) {
+						rc.spawn(dir);
+					} else {
+						Direction dnextup   = dir;
+						Direction dnextdown = dir;
+						for(int rot_count = 0; rot_count <= 4; rot_count = rot_count+1) {
+							dnextup   = dnextup.rotateLeft();
+							dnextdown = dnextdown.rotateRight();
+							if (rc.canMove(dnextup)) {
+								rc.spawn(dnextup);
+								break;
+							} else if (rc.canMove(dnextdown)) {
+								rc.spawn(dnextdown);
+								break;
+							}
 						}
-					//}
-					
+					}
 				} else {
 					jamm_coms(rc, 5);
 				}
