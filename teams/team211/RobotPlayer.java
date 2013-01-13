@@ -42,6 +42,11 @@ import battlecode.common.Team;
 public class RobotPlayer {
 	static RobotController rc;
 	
+	static MapLocation hq;
+	static MapLocation enemy_hq;
+	
+	static Team my_team;
+	
 	final static int battle_len = 13;
 	final static int battle_center = 6;
 	
@@ -104,7 +109,7 @@ public class RobotPlayer {
 			ct = ct - 1;
 		}		
 	}
-	private static void battleprep(Robot[] evil_robots){
+	private static void battle_prep(Robot[] evil_robots){
 		Robot[] allies = rc.senseNearbyGameObjects(Robot.class, 1000000, rc.getTeam());
 		MapLocation me = rc.getLocation();
 		
@@ -131,13 +136,13 @@ public class RobotPlayer {
 				battle_enemies[c_x - it.x][c_y - it.y] |=  1;
 			} catch (Exception e) {}
 		}
-		
+		System.out.println(" OMG ENEMY " + evil_robots.length);
 	}
 	
-	private static void do_battle(RobotController rc, Robot[] evil_robots) throws GameActionException {
+	private static void do_battle() throws GameActionException {
+		MapLocation me = rc.getLocation();
 		
 		/* Decide where to move */
-		System.out.println(" OMG ENEMY " + evil_robots.length);
 		for (int i = 0; i < battle_len; i++) {
 			for (int j = 0; j < battle_len; j++) {
 				int good = 0;
@@ -209,7 +214,8 @@ public class RobotPlayer {
 	private static boolean handle_battle() throws GameActionException {
 		Robot[] en = rc.senseNearbyGameObjects(Robot.class, 14, rc.getTeam().opponent());
 		if (en.length != 0) {
-			battleprep(en);
+			battle_prep(en);
+			do_battle();
 			return false;
 		} else {
 			return true;
@@ -217,7 +223,6 @@ public class RobotPlayer {
 	}
 	
 	private static void r_soilder_capper() {
-		Team my_team = rc.getTeam();
 		MapLocation camp_goal = null;
 		while(true) {
 			try {
@@ -256,17 +261,13 @@ public class RobotPlayer {
 	}
 
 	private static void r_soilder_random_layer() {
-		Team my_team = rc.getTeam();
 		while(true) {
 			try {
 				if (rc.isActive()) {
 					if (handle_battle()) {
 						MapLocation my_loc = rc.getLocation();
-						//boolean on_bad_mine = my_team != rc.senseMine(my_loc);
-						
 						if (Math.random()<0.005 && rc.senseMine(my_loc) == null) {
-							if(rc.getTeamPower() > 10)
-								rc.layMine();
+							rc.layMine();
 						} else { 		
 							random_careful_move(my_loc, my_team);
 						}
@@ -310,8 +311,6 @@ public class RobotPlayer {
 	}
 	
 	private static void r_soilder_assault() {
-		MapLocation enemy_hq = rc.senseEnemyHQLocation();
-		MapLocation hq = rc.senseHQLocation();
 		MapLocation rally_point = new MapLocation((hq.x * 2 + enemy_hq.y)/3, (hq.y * 2 + enemy_hq.y)/3);
 		while(true) {
 			try {
@@ -338,8 +337,7 @@ public class RobotPlayer {
 	
 	/* mill around the HQ. */
 	private static void r_soilder_guard() {
-		Team my_team = rc.getTeam();
-		MapLocation goal = rc.senseHQLocation();
+		MapLocation goal = hq;
 		while(true) {
 			try {
 				if (rc.isActive()) {
@@ -384,7 +382,7 @@ public class RobotPlayer {
 					// Can we keep track of it?
 					// Spawn a soldier
 					//if (rc.getTeamPower() > 10) {
-						Direction dir = rc.getLocation().directionTo(rc.senseEnemyHQLocation());
+						Direction dir = rc.getLocation().directionTo(enemy_hq);
 						if (rc.canMove(dir)) {
 							rc.spawn(dir);
 						} else { //will spawn a guy in an unfilled location
@@ -428,6 +426,9 @@ public class RobotPlayer {
 	
 	public static void run(RobotController rc_) {
 		rc = rc_;
+		hq = rc.senseHQLocation();
+		enemy_hq = rc.senseEnemyHQLocation();
+		my_team = rc.getTeam();
 		
 		RobotType rt = rc.getType();
 		if (rt == RobotType.HQ) {
