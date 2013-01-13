@@ -35,8 +35,8 @@ import battlecode.common.Team;
  */
 public class RobotPlayer {
 	
-	private static int [][] battle_map = new int[10][10];
-	private static MapLocation rally_cache = null;
+	private static int [][] battle_map = new int[11][11];
+	private static MapLocation rally_point = null;
 	
 	private static void careful_move(RobotController rc, Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
 		if(rc.canMove(dir)) {
@@ -99,15 +99,22 @@ public class RobotPlayer {
 			for (int y = 0; y < battle_map.length; y++)
 				battle_map[x][y] = 0;
 		
+		int c_x = me.x + battle_map.length / 2;
+		int c_y = me.y + battle_map.length / 2;
+		
 		/* encode allies & enemies into grid */
 		for (Robot ally: allies) {
 			MapLocation it = rc.senseLocationOf(ally);
-			battle_map[me.x - it.x + battle_map.length / 2][me.y - it.y + battle_map.length] =  1 << 0;
+			try {
+				battle_map[c_x - it.x][c_y - it.y] =  1 << 0;
+			} catch (Exception e) {}
 		}
 		
 		for (Robot r: evil_robots) {
 			MapLocation it = rc.senseLocationOf(r);
-			battle_map[me.x - it.x + battle_map.length / 2][me.y - it.y + battle_map.length] =  1 << 1;
+			try {
+				battle_map[c_x - it.x][c_y - it.y] |=  1 << 1;
+			} catch (Exception e) {}
 		}
 		
 		/* Decide where to move */
