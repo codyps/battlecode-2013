@@ -56,8 +56,8 @@ public class RobotPlayer {
 	
 	private static Team my_team;
 	
-	private final static int battle_len = 13;
-	private final static int battle_center = 6;
+	private final static int battle_len = 15;
+	private final static int battle_center = 7;
 	
 	final private static int [][] battle_allies  = new int[battle_len][battle_len];
 	final private static int [][] battle_enemies = new int[battle_len][battle_len];
@@ -280,7 +280,13 @@ public class RobotPlayer {
 				if (rc.isActive()) {
 					if (handle_battle()) {
 						MapLocation my_loc = rc.getLocation();
-						if (Math.random()<0.005 && rc.senseMine(my_loc) == null) {
+						double r = Math.random();
+						if (r < 0.5 && rc.senseEncampmentSquare(my_loc)) {
+							if (r < 0.25) {
+								rc.captureEncampment(RobotType.SUPPLIER);
+							} else
+								rc.captureEncampment(RobotType.GENERATOR);
+						} else if (r<0.051 && rc.senseMine(my_loc) == null) {
 							rc.layMine();
 						} else { 		
 							random_careful_move(my_loc, my_team);
