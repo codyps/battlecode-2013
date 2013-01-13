@@ -34,6 +34,10 @@ import battlecode.common.Team;
  * - Use bytecode budget of things that are working (ie: HQ while spawning bots, bots while
  *       laying/defusing/capturing) to do higher level calculations & broadcast the information.
  * - Assign "ROLES" to subsets of RobotTypes (some will be "guards", "attack", "explore", "capture")
+ * - In general, for rts games, positioning is very important. Specifically, you want to have
+ * 		a concave shape for your army, surrounding the other guy's army. And, of course don't let
+ * 		your scounts get caught. Micro-managing is important. Hurt guys run away, lose aggro, then come
+ * 		back again.
  */
 public class RobotPlayer {
 	static RobotController rc;
@@ -376,15 +380,26 @@ public class RobotPlayer {
 					// We probably just finished spawning a solder.
 					// Can we keep track of it?
 					// Spawn a soldier
-					if (rc.getTeamPower() > 10) {
+					//if (rc.getTeamPower() > 10) {
 						Direction dir = rc.getLocation().directionTo(rc.senseEnemyHQLocation());
 						if (rc.canMove(dir)) {
 							rc.spawn(dir);
-						} else {
-							/* try some other directions? */
-							
+						} else { //will spawn a guy in an unfilled location
+							Direction dnextup   = dir;
+							Direction dnextdown = dir;
+							for(int rot_count=0; rot_count <= 4; rot_count = rot_count+1){
+								dnextup   = dnextup.rotateLeft();
+								dnextdown = dnextdown.rotateRight();
+									if (rc.canMove(dnextup)) {
+										rc.spawn(dnextup);
+									}
+									else if (rc.canMove(dnextdown)) {
+										rc.spawn(dnextdown);
+									}
+							}	
 						}
-					}
+					//}
+					
 				} else {
 					jamm_coms(rc, 5);
 				}
