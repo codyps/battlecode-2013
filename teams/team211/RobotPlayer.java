@@ -279,7 +279,7 @@ public class RobotPlayer {
 							rc.spawn(dir);
 						} else {
 							/* try some other directions? */
-							
+							/* make a list of directions, then */
 						}
 					}
 				} else {
