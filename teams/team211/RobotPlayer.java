@@ -1,5 +1,7 @@
 package team211;
 
+import com.sun.org.apache.bcel.internal.generic.BALOAD;
+
 import battlecode.common.Clock;
 import battlecode.common.Direction;
 import battlecode.common.GameActionException;
@@ -34,9 +36,13 @@ import battlecode.common.Team;
  * - Assign "ROLES" to subsets of RobotTypes (some will be "guards", "attack", "explore", "capture")
  */
 public class RobotPlayer {
+	final static int battle_len = 13;
+	final static int battle_center = 6;
 	
-	private static int [][] battle_map = new int[13][13];
-	private static int [][] goodness = new int [13][13];
+	private static int [][] battle_allies = new int[battle_len][battle_len];
+	private static int [][] battle_enemies = new int[battle_len][battle_len];
+	private static int [][] battle_good = new int [battle_len][battle_len];
+	private static int [][] battle_bad = new int [battle_len][battle_len];
 	
 	private static void careful_move(RobotController rc, Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
 		if(rc.canMove(dir)) {
@@ -97,58 +103,98 @@ public class RobotPlayer {
 		Robot[] allies = rc.senseNearbyGameObjects(Robot.class, 1000000, rc.getTeam());
 		MapLocation me = rc.getLocation();
 		
-		for (int x = 0; x < battle_map.length; x++)
-			for (int y = 0; y < battle_map.length; y++)
-				battle_map[x][y] = 0;
+		for (int x = 0; x < battle_len; x++)
+			for (int y = 0; y < battle_len; y++) {
+				battle_allies[x][y] = 0;
+				battle_enemies[x][y] = 0;
+			}
 		
-		int c_x = me.x + battle_map.length / 2;
-		int c_y = me.y + battle_map.length / 2;
-		int c = battle_map.length / 2;
+		int c_x = me.x + battle_len / 2;
+		int c_y = me.y + battle_len / 2;
 		
 		/* encode allies & enemies into grid */
 		for (Robot ally: allies) {
 			try {
 				MapLocation it = rc.senseLocationOf(ally);
-				battle_map[c_x - it.x][c_y - it.y] =  1 << 0;
+				battle_allies[c_x - it.x][c_y - it.y] =  1;
 			} catch (Exception e) {}
 		}
 		
 		for (Robot r: evil_robots) {
 			try {
 				MapLocation it = rc.senseLocationOf(r);
-				battle_map[c_x - it.x][c_y - it.y] |=  1 << 1;
+				battle_enemies[c_x - it.x][c_y - it.y] |=  1;
 			} catch (Exception e) {}
 		}
 		
 		/* Decide where to move */
 		System.out.println(" OMG ENEMY " + evil_robots.length);
-		for (int i = 0; i < battle_map.length; i++) {
-			for (int j = 0; j < battle_map.length; j++) {
+		for (int i = 0; i < battle_len; i++) {
+			for (int j = 0; j < battle_len; j++) {
 				int good = 0;
-				try { good += battle_map[i-1][j  ] & 1; } catch (Exception e) {}
-				try { good += battle_map[i-1][j-1] & 1; } catch (Exception e) {}
-				try { good += battle_map[i-1][j+1] & 1; } catch (Exception e) {}
-				try { good += battle_map[i  ][j-1] & 1; } catch (Exception e) {}
-				try { good += battle_map[i  ][j+1] & 1; } catch (Exception e) {}
-				try { good += battle_map[i+1][j  ] & 1; } catch (Exception e) {}
-				try { good += battle_map[i+1][j-1] & 1; } catch (Exception e) {}
-				try { good += battle_map[i+1][j+1] & 1; } catch (Exception e) {}
+				try { good += battle_allies[i-1][j  ]; } catch (Exception e) {}
+				try { good += battle_allies[i-1][j-1]; } catch (Exception e) {}
+				try { good += battle_allies[i-1][j+1]; } catch (Exception e) {}
+				try { good += battle_allies[i  ][j-1]; } catch (Exception e) {}
+				try { good += battle_allies[i  ][j+1]; } catch (Exception e) {}
+				try { good += battle_allies[i+1][j  ]; } catch (Exception e) {}
+				try { good += battle_allies[i+1][j-1]; } catch (Exception e) {}
+				try { good += battle_allies[i+1][j+1]; } catch (Exception e) {}
+				
+				battle_good[i][j] = good;
 				
 				int bad = 0;
-				try { bad += battle_map[i-1][j  ] & 2 >> 1; } catch (Exception e) {}
-				try { bad += battle_map[i-1][j-1] & 2 >> 1; } catch (Exception e) {}
-				try { bad += battle_map[i-1][j+1] & 2 >> 1; } catch (Exception e) {}
-				try { bad += battle_map[i  ][j-1] & 2 >> 1; } catch (Exception e) {}
-				try { bad += battle_map[i  ][j+1] & 2 >> 1; } catch (Exception e) {}
-				try { bad += battle_map[i+1][j  ] & 2 >> 1; } catch (Exception e) {}
-				try { bad += battle_map[i+1][j-1] & 2 >> 1; } catch (Exception e) {}
-				try { bad += battle_map[i+1][j+1] & 2 >> 1; } catch (Exception e) {}
+				try { bad += battle_enemies[i-1][j  ]; } catch (Exception e) {}
+				try { bad += battle_enemies[i-1][j-1]; } catch (Exception e) {}
+				try { bad += battle_enemies[i-1][j+1]; } catch (Exception e) {}
+				try { bad += battle_enemies[i  ][j-1]; } catch (Exception e) {}
+				try { bad += battle_enemies[i  ][j+1]; } catch (Exception e) {}
+				try { bad += battle_enemies[i+1][j  ]; } catch (Exception e) {}
+				try { bad += battle_enemies[i+1][j-1]; } catch (Exception e) {}
+				try { bad += battle_enemies[i+1][j+1]; } catch (Exception e) {}
 				
-				
+				battle_bad[i][j] = bad;
 			}
 		}
 		
+		int best_good = battle_good[battle_center][battle_center];
+		int best_x = 0;
+		int best_y = 0;
 		
+		int retreat_good = battle_good[battle_center][battle_center];
+		int retreat_bad  = battle_bad[battle_center][battle_center];
+		int retreat_x = 0;
+		int retreat_y = 0;
+		for (int i = battle_center - 1; i <= battle_center + 1; i++)
+			for (int j = battle_center - 1; j <= battle_center + 1; j++) {
+				if (battle_allies[i][j] != 0 || battle_enemies[i][j] != 0)
+					continue;
+				int good = battle_good[i][j];
+				int bad = battle_bad[i][j];
+			
+				if (best_good < good) {
+					if (bad > 0) {
+						best_x = i;
+						best_y = j;
+						best_good = good;
+					}
+				}
+				
+				if (retreat_good < good) {
+					if (retreat_bad > bad) {
+						retreat_good = good;
+						retreat_bad = bad;
+						retreat_x = i;
+						retreat_y = j;
+					}
+				}
+			}
+		
+		if (best_good > retreat_good) {
+			rc.move(me.directionTo(me.add(best_x, best_y)));
+		} else {
+			rc.move(me.directionTo(me.add(retreat_x, retreat_y)));
+		}
 	}
 	
 	private static boolean handle_battle(RobotController rc) throws GameActionException {
