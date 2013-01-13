@@ -56,13 +56,15 @@ public class RobotPlayer {
 	
 	private static Team my_team;
 	
-	private final static int battle_len = 15;
+	private final static int battle_len = 10;
 	private final static int battle_center = 7;
 	
 	final private static int [][] battle_allies  = new int[battle_len][battle_len];
 	final private static int [][] battle_enemies = new int[battle_len][battle_len];
 	final private static int [][] battle_good    = new int[battle_len][battle_len];
 	final private static int [][] battle_bad     = new int[battle_len][battle_len];
+	
+	private static String name = "Unnamed";
 	
 	private static void careful_move(Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
 		if(rc.canMove(dir)) {
@@ -248,20 +250,10 @@ public class RobotPlayer {
 						}
 						
 						if (my_loc.equals(camp_goal)) {
-							if (Math.random() > 0.5) {
-								rc.captureEncampment(RobotType.SUPPLIER);
-							} else {
-								rc.captureEncampment(RobotType.GENERATOR);
-							}
+							rc.captureEncampment(RobotType.SUPPLIER);
 							camp_goal = null;
 						} else {
-							/* look for closest unclaimed, unoccupied camp. */
-							Direction dir = my_loc.directionTo(camp_goal);
-							if (rc.canMove(dir)) {
-								careful_move(dir, my_loc, my_team);
-							} else {
-								random_careful_move(my_loc, my_team);
-							}
+							goToLocation(camp_goal);
 						}
 					}
 				} else {
@@ -282,10 +274,7 @@ public class RobotPlayer {
 						MapLocation my_loc = rc.getLocation();
 						double r = Math.random();
 						if (r < 0.5 && rc.senseEncampmentSquare(my_loc)) {
-							if (r < 0.25) {
-								rc.captureEncampment(RobotType.SUPPLIER);
-							} else
-								rc.captureEncampment(RobotType.GENERATOR);
+							rc.captureEncampment(RobotType.SUPPLIER);
 						} else if (r<0.051 && rc.senseMine(my_loc) == null) {
 							rc.layMine();
 						} else { 		
@@ -306,10 +295,10 @@ public class RobotPlayer {
 	private static boolean assaulting = false;
 	private static boolean should_clump() {
 		if (assaulting)
-			return true;
+			return false;
 		if (Clock.getRoundNum() > 200)
 			assaulting = ((Clock.getRoundNum() / 100) % 2) == 0;
-		return assaulting;
+		return !assaulting;
 	}
 
 	private static void moveOrDefuse(Direction dir) throws GameActionException{
@@ -458,15 +447,22 @@ public class RobotPlayer {
 		
 		RobotType rt = rc.getType();
 		if (rt == RobotType.HQ) {
+			name = "HQ";
 			r_hq();
 		} else if (rt == RobotType.SOLDIER) {
 			while(true) {
 				int i = rc.getRobot().getID() % 10;
 				if (i >= 4) {
+					name = "Assault";
+					rc.setIndicatorString(0, name);
 					r_soilder_assault();
 				} else if (i >= 2) {
+					name = "Capper";
+					rc.setIndicatorString(0, name);
 					r_soilder_capper();
 				} else {
+					name = "Wanderer";
+					
 					r_soilder_random_layer();
 				}
 			}
