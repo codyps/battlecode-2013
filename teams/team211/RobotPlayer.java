@@ -359,25 +359,25 @@ public class RobotPlayer {
 					// We probably just finished spawning a solder.
 					// Can we keep track of it?
 					// Spawn a soldier
-					if (rc.getTeamPower() > 10) {
+					//if (rc.getTeamPower() > 10) {
 						Direction dir = rc.getLocation().directionTo(rc.senseEnemyHQLocation());
 						if (rc.canMove(dir)) {
 							rc.spawn(dir);
 						} else { 
 							Direction dnextup   = dir;
 							Direction dnextdown = dir;
-							for(int rot_count=0; rot_count <= 4; rot_count = rot_count+1)
-								Direction dnextup   = dnextup.rotateLeft();
-								Direction dnextdown = dnextdown.rotateRight();
+							for(int rot_count=0; rot_count <= 4; rot_count = rot_count+1){
+								dnextup   = dnextup.rotateLeft();
+								dnextdown = dnextdown.rotateRight();
 									if (rc.canMove(dnextup)) {
 										rc.spawn(dnextup);
 									}
 									else if (rc.canMove(dnextdown)) {
 										rc.spawn(dnextdown);
 									}
-									
+							}	
 						}
-					}
+					//}
 					
 				} else {
 					jamm_coms(rc, 5);
