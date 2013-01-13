@@ -104,8 +104,7 @@ public class RobotPlayer {
 			ct = ct - 1;
 		}		
 	}
-	
-	private static void do_battle(RobotController rc, Robot[] evil_robots) throws GameActionException {
+	private static void battleprep(Robot[] evil_robots){
 		Robot[] allies = rc.senseNearbyGameObjects(Robot.class, 1000000, rc.getTeam());
 		MapLocation me = rc.getLocation();
 		
@@ -132,6 +131,10 @@ public class RobotPlayer {
 				battle_enemies[c_x - it.x][c_y - it.y] |=  1;
 			} catch (Exception e) {}
 		}
+		
+	}
+	
+	private static void do_battle(RobotController rc, Robot[] evil_robots) throws GameActionException {
 		
 		/* Decide where to move */
 		System.out.println(" OMG ENEMY " + evil_robots.length);
@@ -204,9 +207,9 @@ public class RobotPlayer {
 	}
 	
 	private static boolean handle_battle() throws GameActionException {
-		Robot[] en = rc.senseNearbyGameObjects(Robot.class, 5, rc.getTeam().opponent());
+		Robot[] en = rc.senseNearbyGameObjects(Robot.class, 14, rc.getTeam().opponent());
 		if (en.length != 0) {
-			do_battle(rc, en);
+			battleprep(en);
 			return false;
 		} else {
 			return true;
