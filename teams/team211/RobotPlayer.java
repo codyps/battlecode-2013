@@ -35,8 +35,8 @@ import battlecode.common.Team;
  */
 public class RobotPlayer {
 	
-	private static int [][] battle_map = new int[11][11];
-	private static MapLocation rally_point = null;
+	private static int [][] battle_map = new int[13][13];
+	private static int [][] goodness = new int [13][13];
 	
 	private static void careful_move(RobotController rc, Direction dir, MapLocation my_loc, Team my_team) throws GameActionException {
 		if(rc.canMove(dir)) {
@@ -70,8 +70,10 @@ public class RobotPlayer {
 		Direction dir = dirs[c];
 		while (!rc.canMove(dir)) {
 			c = (c + 3) % 8; /* TODO: does this cover all values? */
-			if (c == start)
+			if (c == start) {
+				System.out.println("FAILED TO MOVE");
 				return; /* can't move anywhere */
+			}
 			dir = dirs[c];
 		}
 		
@@ -101,23 +103,52 @@ public class RobotPlayer {
 		
 		int c_x = me.x + battle_map.length / 2;
 		int c_y = me.y + battle_map.length / 2;
+		int c = battle_map.length / 2;
 		
 		/* encode allies & enemies into grid */
 		for (Robot ally: allies) {
-			MapLocation it = rc.senseLocationOf(ally);
 			try {
+				MapLocation it = rc.senseLocationOf(ally);
 				battle_map[c_x - it.x][c_y - it.y] =  1 << 0;
 			} catch (Exception e) {}
 		}
 		
 		for (Robot r: evil_robots) {
-			MapLocation it = rc.senseLocationOf(r);
 			try {
+				MapLocation it = rc.senseLocationOf(r);
 				battle_map[c_x - it.x][c_y - it.y] |=  1 << 1;
 			} catch (Exception e) {}
 		}
 		
 		/* Decide where to move */
+		System.out.println(" OMG ENEMY " + evil_robots.length);
+		for (int i = 0; i < battle_map.length; i++) {
+			for (int j = 0; j < battle_map.length; j++) {
+				int good = 0;
+				try { good += battle_map[i-1][j  ] & 1; } catch (Exception e) {}
+				try { good += battle_map[i-1][j-1] & 1; } catch (Exception e) {}
+				try { good += battle_map[i-1][j+1] & 1; } catch (Exception e) {}
+				try { good += battle_map[i  ][j-1] & 1; } catch (Exception e) {}
+				try { good += battle_map[i  ][j+1] & 1; } catch (Exception e) {}
+				try { good += battle_map[i+1][j  ] & 1; } catch (Exception e) {}
+				try { good += battle_map[i+1][j-1] & 1; } catch (Exception e) {}
+				try { good += battle_map[i+1][j+1] & 1; } catch (Exception e) {}
+				
+				int bad = 0;
+				try { bad += battle_map[i-1][j  ] & 2 >> 1; } catch (Exception e) {}
+				try { bad += battle_map[i-1][j-1] & 2 >> 1; } catch (Exception e) {}
+				try { bad += battle_map[i-1][j+1] & 2 >> 1; } catch (Exception e) {}
+				try { bad += battle_map[i  ][j-1] & 2 >> 1; } catch (Exception e) {}
+				try { bad += battle_map[i  ][j+1] & 2 >> 1; } catch (Exception e) {}
+				try { bad += battle_map[i+1][j  ] & 2 >> 1; } catch (Exception e) {}
+				try { bad += battle_map[i+1][j-1] & 2 >> 1; } catch (Exception e) {}
+				try { bad += battle_map[i+1][j+1] & 2 >> 1; } catch (Exception e) {}
+				
+				
+			}
+		}
+		
+		
 	}
 	
 	private static boolean handle_battle(RobotController rc) throws GameActionException {
@@ -213,7 +244,7 @@ public class RobotPlayer {
 		while(true) {
 			try {
 				if (rc.isActive()) {
-					if (!handle_battle(rc)) {
+					if (handle_battle(rc)) {
 						// CLUMP then ATTACK.
 						MapLocation my_loc = rc.getLocation();
 						if (should_clump(rc)) {
@@ -233,6 +264,8 @@ public class RobotPlayer {
 		}
 	}
 	
+	//private static boolean try_in_the_general_direction(RobotController rc, Direction d, Functo)
+	
 	/* mill around the HQ. */
 	private static void r_soilder_guard(RobotController rc) {
 		Team my_team = rc.getTeam();
@@ -242,15 +275,22 @@ public class RobotPlayer {
 				if (rc.isActive()) {
 					MapLocation my_loc = rc.getLocation();
 					double dist = my_loc.distanceSquaredTo(goal);
-					if (dist > 10) {
+					if (dist > 15) {
 						Direction dir = my_loc.directionTo(goal);
 						if (rc.canMove(dir)) {
 							careful_move(rc, dir, my_loc, my_team);
 						} else {
 							random_careful_move(rc, my_loc, my_team);
 						}
+					} else if (dist <= 2) {
+						Direction dir = my_loc.directionTo(goal).opposite();
+						if (rc.canMove(dir)) {
+							careful_move(rc, dir, my_loc, my_team);
+						} else {
+							random_careful_move(rc, my_loc, my_team);
+						}
 					} else {
-						if (Clock.getRoundNum() % 5 == 0) {
+						if (Math.random() > 0.5) {
 							rc.layMine();
 						} else {
 							random_careful_move(rc, my_loc, my_team);
