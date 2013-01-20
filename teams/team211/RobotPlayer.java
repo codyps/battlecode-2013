@@ -290,6 +290,7 @@ public class RobotPlayer {
 							if (build_encampment())
 								camp_goal = null;
 						} else if (rc.senseObjectAtLocation(camp_goal).getTeam() == my_team) {
+							System.out.println(" OMG STUCK ");	
 							r_soilder_assault(); /* The cappers spin in cicles when there's a guy already on the spot trying to cap it. This attempted to fix it and failed. Now no cappers spawn.*/
 						} else {	
 							goToLocation(camp_goal);
